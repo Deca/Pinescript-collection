@@ -1,0 +1,190 @@
+//@version=3
+
+//study(title="SMA 50-10-200 + EMA 12+26 + MTF 200SMA by Deca", shorttitle="SMA+EMA+MTF", overlay=true)
+strategy(title = "SMA 50-10-200 + EMA 12+26 + MTF 200SMA + Combined Strategy", default_qty_type = strategy.percent_of_equity, default_qty_value = 100, commission_type=strategy.commission.percent, commission_value = .0020, pyramiding = 0, slippage = 3, overlay = true)
+
+
+//-------------------------------------------------------------
+//SMA
+//-----------------------------------------------------------
+checkShortSMA = input(true, title="Enable short SMA's")
+checkMediumSMA = input(true, title="Enable medium SMA's")
+checkLongSMA = input(true, title="Enable long SMA's")
+
+short = input(50, minval=1, title="Short-Period")
+medium = input(100, minval=1, title="Medium-Period")
+long = input(200, minval=1, title="Long-Period")
+src = input(close, title="Source SMA")
+
+
+smaMedium = sma(src, medium)
+ 
+
+plot(checkShortSMA ? sma(src, short) : na, color=#00FF00, transp=0, linewidth=1, title="Short")
+plot(checkMediumSMA ? sma(src, medium) : na, color=#FF9800, transp=0, linewidth=2, title="Medium")
+plot(checkLongSMA ? sma(src, long) : na, color=#970000, transp=0, linewidth=3, title="Long") 
+
+
+longEmaCondition = close > smaMedium
+exitLongEmaCondition = close <= smaMedium
+
+shortEmaCondition = close < smaMedium
+exitShortEmaCondition =  close >= smaMedium
+//-------------------------------------------------------------
+
+
+
+//-------------------------------------------------------------
+//EMA
+//------------------------------------------------------------
+// Checkbox's for the  EMA's
+checkEMA = input(true, title="Enable EMA's")
+
+len = input(12, minval=1, title="Period EMA 1")
+len2 = input(26, minval=1, title="Period EMA 2")
+
+src_ema = input(close, title="Source EMA 1")
+src_ema_2 = input(close, title="Source EMA 2")
+
+ema1 = ema(src_ema, len)
+ema2 = ema(src_ema_2, len2)
+
+plot(checkEMA and ema1 ? ema1: na, title="EMA 1", color=#56b7ff,transp=0, linewidth=1, title="Short")
+plot(checkEMA and ema2 ? ema2: na, title="EMA 2", color=#e536ff, transp=0, linewidth=1, title="Medium")
+//-------------------------------------------------------------
+
+
+//-------------------------------------------------------------
+//SMA MTF
+//------------------------------------------------------------
+showWeekly = input(false, defval=false, title="Enable W SMA")
+showMonthly = input(false, defval=false, title="Display M SMA")
+TFweekly = input('W')
+TFmontly = input('M')
+
+ma_src = input(close, title="MTF Field")
+ma_length = input(200, title="MTF Period")
+off=input(0, title="Offset")
+mtfma=sma(ma_src, ma_length)
+mtfmaWeekly = showWeekly  ?  security(tickerid, TFweekly, sma(ma_src, ma_length)) :  na
+mtfmaMonthly = showMonthly ? security(tickerid, TFmontly, sma(ma_src, ma_length))  : na
+
+plot(mtfmaWeekly, offset=off, title="Weekly", style=line, color=close>=mtfmaWeekly ? green : maroon, linewidth=2, join=true)
+plot(mtfmaMonthly, offset=off, title="Montly", style=line, color=close>=mtfmaMonthly ? green : maroon, linewidth=2, join=true)
+//-------------------------------------------------------------
+
+
+
+// ----------  //
+// INPUTS FOR STRATEGY //
+// ----------- //
+showsignals = input(true, title="Buy/Sell Signals Heiken Ashi and Stochastics strategy")
+enableCheckSMASignal = input(true, title="Enable SMA 100 crosses signal")
+enableCheckRSISignal = input(false, title="Enable RSI and overbought/oversold ranges signal")
+enableCheckStochrsiSignal = input(true, title="***NOT WORKING - TODO*** Enable stochRsi crosses and overbought/oversold ranges signal")
+
+// ----------  //
+// OSCILLATORS //
+// ----------- //
+
+//rsi
+rsiInput = input(14, title="Rsi Length", minval=1)
+rsiInputLongEntryMin =   input(10, title="Rsi Long condition min value", minval=1) 
+rsiInputLongEntryMax =   input(25, title="Rsi Long condition max value", minval=1) 
+rsiInputLongExit =   input(80, title="Rsi Long condition exit value", minval=1) 
+ 
+rsiInputShortEntryMin =   input(90, title="Rsi Short condition min value", minval=1) 
+rsiInputShortEntryMax =   input(75, title="Rsi Short condition max value", minval=1) 
+rsiInputShortExit =   input(20, title="Rsi Short condition exit value", minval=1) 
+
+
+rsi = rsi(close, rsiInput)
+longRsiCondition = rsi < rsiInputLongEntryMax and rsi > rsiInputLongEntryMin
+exitLongRsiCondition = rsi > rsiInputLongExit
+
+shortRsiCondition = rsi > rsiInputShortEntryMin and rsi < rsiInputShortEntryMax
+exitShortRsiCondition = rsi < rsiInputShortExit
+
+
+
+
+
+// Stochastic
+
+V = volume
+O = open
+H = high
+L = low
+C = close
+
+srcSelect	=	input(title = "Select the Stochastic RSI Source", defval = "Close", options=["Open", "High", "Low", "Close", "Volume", "HL/2", "HLC/3", "OHLC/4"])
+srcStoch			=	iff(srcSelect=="Open", O,	iff(srcSelect=="High", H,	iff(srcSelect=="Low", L,	iff(srcSelect=="HL/2", hl2,	iff(srcSelect=="HLC/3", hlc3,	iff(srcSelect=="OHLC/4", ohlc4, iff(srcSelect=="Volume", V, C)))))))	
+stochLength =  input(14, title="Stoch rsi length", minval=1)
+smoothK =  input(3, title="Stoch rsi smoothK", minval=1)
+smoothD =  input(3, title="Stoch rsi smoothD", minval=1)
+StochOverBought  	=	input(title = "Select the Overbought Level", defval =86, minval = 1, step = 1)
+StochOverSold	=	input(title = "Select the Oversold Level", defval = 20, minval = 1, step = 1)
+
+
+sRSI  =   rsi(srcStoch, stochLength)
+kFast = sma(stoch(sRSI, sRSI, sRSI, stochLength), smoothK)
+dSlow = sma(kFast, smoothD)
+
+//longStochasticCondition = kFast < 80
+//exitLongStochasticCondition = kFast > 95
+
+//shortStochasticCondition = kFast > 20
+//exitShortStochasticCondition = kFast < 5
+
+
+longStochasticCondition = crossover(kFast,dSlow) and kFast < StochOverSold
+exitLongStochasticCondition = crossunder(kFast,dSlow) and kFast > StochOverBought
+
+shortStochasticCondition =  crossunder(kFast,dSlow) and kFast > StochOverBought
+exitShortStochasticCondition = crossover(kFast,dSlow) and kFast < StochOverBought
+//-------------------------------------------------------------
+
+
+// ----------  //
+// CANDLE BULL BEAR //
+// ----------- //
+longCandleCondition = open < close
+//exitlongCandleCondition = open > close
+
+shortCandleCondition = open > close
+//exitshortCandleCondition = open < close
+
+
+//----------//
+// STRATEGY //
+//----------//
+
+
+
+
+if(showsignals)
+
+    longCondition = (enableCheckSMASignal  ? longEmaCondition : true )  and (enableCheckRSISignal  ? longRsiCondition : true ) and longStochasticCondition and longCandleCondition and strategy.position_size == 0
+    exitLongCondition = ((enableCheckSMASignal  ? exitLongEmaCondition : true )  and  (enableCheckRSISignal  ? exitLongRsiCondition : true )  or exitLongStochasticCondition) and strategy.position_size > 0
+    
+
+    if (longCondition)
+        strategy.entry("LONG", strategy.long)
+    if (exitLongCondition)
+        strategy.close("LONG")
+    
+        
+    shortCondition = (enableCheckSMASignal  ? shortEmaCondition : true ) and  (enableCheckRSISignal  ? shortRsiCondition : true )  and shortStochasticCondition and shortCandleCondition and strategy.position_size == 0
+    exitShortCondition = ( (enableCheckSMASignal  ? exitShortEmaCondition : true ) and  (enableCheckRSISignal  ? exitShortRsiCondition : true )  or exitShortStochasticCondition) and strategy.position_size < 0
+    
+    if (shortCondition)
+        strategy.entry("SHORT", strategy.short)
+    if (exitShortCondition)
+        strategy.close("SHORT")
+        
+        
+        
+//https://www.tradingview.com/script/L2raV2N1-AllTradeSignals-com-Stochastic-RSI-Crossover-Plots/
+//https://www.tradingview.com/script/X02pQNof-Price-above-below-EMA/
+//https://www.tradingview.com/script/IGJPEi7L-Stochastic-RSI-Double-Strategy-by-ChartArt/
+//https://www.tradingview.com/script/I6rPLr4c-StochRSI/

@@ -1,0 +1,55 @@
+//@version=4
+study(title="Stoch MTF", overlay=false)
+
+
+// Inputs
+rsiSource            = input(close, "RSI Source")
+k                    = input(3,  "K", minval=1)
+d                    = input(3,  "D", minval=1)
+rsiLength            = input(14, "RSI Length", minval=1)
+stochLength          = input(14, "Stochastic Length", minval=1)
+stochOverboughtLevel = input(80, "Stochastic overbought level", minval=1)
+stochOversoldLevel   = input(20, "Stochastic oversold level", minval=1)
+
+timeframe1          = input(5, "Timeframe 1", minval=1)
+timeframe2          = input(15, "Timeframe 2", minval=1)
+timeframe3          = input(60, "Timeframe 3", minval=1)
+timeframe4         = input(240,"Timeframe 4", minval=1)
+
+calculateBg(timeframe) =>
+    rsiValue   = security(syminfo.tickerid, tostring(timeframe), rsi(rsiSource, rsiLength))
+    stochK     = security(syminfo.tickerid, tostring(timeframe), sma(stoch(rsiValue, rsiValue, rsiValue, stochLength), k))
+    stochD     = security(syminfo.tickerid, tostring(timeframe), sma(stochK, d))
+    
+   // down = crossunder(stochK, stochD) and stochD >= stochOverboughtLevel
+   // up = crossover(stochK, stochD) and stochD <= stochOversoldLevel
+
+    
+    overbought =  crossunder(stochK, stochD) and (stochK > stochOverboughtLevel or stochD > stochOverboughtLevel)
+    oversold   =  crossover(stochK, stochD)  and (stochK < stochOversoldLevel or  stochD < stochOversoldLevel)
+    overbought ? color.red : oversold ? color.lime : color.new(color.black, 90)
+    
+
+plotK(timeframe, multiplier) =>
+    rsiValue   = security(syminfo.tickerid, tostring(timeframe), rsi(rsiSource, rsiLength))
+    stochK     = security(syminfo.tickerid, tostring(timeframe), sma(stoch(rsiValue, rsiValue, rsiValue, stochLength), k))*multiplier
+
+plotD(timeframe, multiplier) =>
+    rsiValue   = security(syminfo.tickerid, tostring(timeframe), rsi(rsiSource, rsiLength))
+    stochK     = security(syminfo.tickerid, tostring(timeframe), sma(stoch(rsiValue, rsiValue, rsiValue, stochLength), k))*multiplier
+    stochD     = security(syminfo.tickerid, tostring(timeframe), sma(stochK, d))
+
+plot(plotK(timeframe1,-10), color=#ffffff)
+plot(plotD(timeframe1,-10) , color=#6E6E6E)
+plot(plotK(timeframe2, -10), color=#F2FF00)
+plot(plotD(timeframe2, -10) , color=#FF8000)
+plot(plotK(timeframe3, 10), color=#3DE712)
+plot(plotD(timeframe3, 10) , color=#144D06)
+plot(plotK(timeframe4, 10), color=#ED18C2)
+plot(plotD(timeframe4, 10) , color=#4F0840)
+
+
+plotshape(1100, "5",  shape.square,  location.absolute    , calculateBg(timeframe1), size=size.tiny, transp=0)
+plotshape(1200, "15",  shape.square, location.absolute, calculateBg(timeframe2), size=size.tiny, transp=0)
+plotshape(1300, "60",  shape.square, location.absolute, calculateBg(timeframe3), size=size.tiny, transp=0)
+plotshape(1400, "240", shape.square, location.absolute, calculateBg(timeframe4), size=size.tiny, transp=0)

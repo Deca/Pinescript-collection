@@ -1,0 +1,157 @@
+//@version=4
+study(title="STOCH + RSI + MFI + MACD + QUADCCI", shorttitle="STOCH + RSI + MFI + MACD + QUADCCI")
+
+ShowRSI=input(true, title="------ Show RSI -------", type=input.bool)
+src = close, len = input(14, minval=1, title="Length")
+up = rma(max(change(src), 0), len)
+down = rma(-min(change(src), 0), len)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - (100 / (1 + up / down))
+plot(ShowRSI ? rsi : na, color=color.aqua, linewidth=3)
+band1 = hline(70, linestyle=hline.style_solid, color=ShowRSI ? color.gray: #FF000000, linewidth=1) 
+band0 = hline(30, linestyle=hline.style_solid, color=ShowRSI ? color.gray:  #FF000000, linewidth=1) 
+fill(band1, band0, color=(ShowRSI ? color.purple: #FF000000) , transp=80)
+
+
+ShowStoch=input(true, title="------ Show STOCH ------", type=input.bool)
+smoothK = input(3, minval=1)
+smoothD = input(3, minval=1)
+lengthRSI = input(14, minval=1)
+lengthStoch = input(14, minval=1)
+src1 = input(close, title="RSI Source")
+
+rsi1 = rsi(src, lengthRSI)
+k = sma(stoch(rsi1, rsi1, rsi1, lengthStoch), smoothK)
+d = sma(k, smoothD)
+plot(ShowStoch ? k : na, color=color.yellow)
+plot(ShowStoch ? d : na, color=color.orange)
+h0 = hline(80, color=(ShowStoch ? color.gray : #FF000000))
+h1 = hline(20, color=(ShowStoch ? color.gray : #FF000000))
+fill(h0, h1, color=( ShowStoch ? color.black : #FF000000) , transp=100)
+
+
+
+
+
+/// MFI ///
+ShowMFI=input(false, title="------ Show MFI ------", type=input.bool)
+source = hlc3
+length = input(14, minval=1)
+lower = input(20, minval=0, maxval=50, type=input.integer)
+upper = input(80, minval=50, maxval=100, type=input.integer)
+// DrawMFI_f=input(true, title="Draw MFI?", type=bool)
+HighlightBreaches=input(true, title="Highlight Oversold/Overbought?", type=input.bool)
+
+
+upper_s = sum(volume * (change(source) <= 0 ? 0 : source), length)
+lower_s = sum(volume * (change(source) >= 0 ? 0 : source), length)
+mf = rsi(upper_s, lower_s)
+mfp = plot(ShowMFI ? mf : na, color=color.white,  linewidth=1)
+top = hline(upper , color= (ShowMFI ? color.gray: #FF000000), linewidth=1, editable=false)
+bottom = hline(lower, color= (ShowMFI ? color.gray: #FF000000), linewidth=1, editable=false)
+
+
+hline(0, color=( ShowMFI ? color.purple : #FF000000), editable=false)
+hline(100, color=( ShowMFI ? color.purple : #FF000000), editable=false) 
+
+// Breaches
+b_color = (mf > upper) ? color.red : (mf < lower) ? color.green : na
+bgcolor( iff (HighlightBreaches  , iff (ShowMFI  , b_color ,  na)  ,  na) )
+hline(50, title='0 Line', color=( ShowMFI ? color.gray : #FF000000 ), linestyle=hline.style_dotted, linewidth=1)
+
+/// MACD///
+ShowMACD=input(true, title="------ show MACD ------", type=input.bool)
+MACDmultiplier = input(title="MACD Hight multiplier", type=input.float, minval = 0.0000000000001, maxval = 999999999999, defval = 10)
+fast_length = input(title="Fast Length", type=input.integer, defval=12)
+slow_length = input(title="Slow Length", type=input.integer, defval=26)
+signal_length = input(title="Signal Smoothing", type=input.integer, minval=1, maxval=50, defval=9)
+sma_source = input(title="Simple MA(Oscillator)", type=input.bool, defval=false)
+sma_signal = input(title="Simple MA(Signal Line)", type=input.bool, defval=false)
+
+ 
+// Plot colors
+col_grow_above = #26A69A
+col_grow_below = #FFCDD2
+col_fall_above = #B2DFDB
+col_fall_below = #EF5350
+col_macd = #0094ff
+col_signal = #ff6a00
+
+// Calculating
+srcMACD = close 
+fast_ma = sma_source ? sma(srcMACD, fast_length) : ema(srcMACD, fast_length)
+slow_ma = sma_source ? sma(srcMACD, slow_length) : ema(srcMACD, slow_length)
+macd = fast_ma - slow_ma
+signal = sma_signal ? sma(macd, signal_length) : ema(macd, signal_length)
+hist = macd - signal
+
+plot(ShowMACD ? hist  : na, title="Histogram", style=plot.style_columns, color=(hist>=0 ? (hist[1] < hist ? col_grow_above : col_fall_above) : (hist[1] < hist ? col_grow_below : col_fall_below) ), transp=0 )
+plot(ShowMACD ? macd  : na, title="MACD", color=col_macd, transp=0)
+plot(ShowMACD ? signal  : na, title="Signal", color=col_signal, transp=0)
+ 
+/////////////////////
+
+
+
+
+
+/// QUAD CCI ///
+
+ShowQUADCCI=input(false, title="------ show QUAD CCI  ------", type=input.bool)
+source_main              =   input(title="Source", type=input.source, defval=hlc3)
+
+cci1_sep                 = input(true, title="-CCI1")
+cci1_len                 = input(14,  type=input.integer,    title="CCI Length")
+cci1_useDifferentRes     = input(false, title="Check to turn ON Different Time Frame")
+cci1_candle_period       = input("3", type=input.resolution, title="CCI - Time Frame")
+
+cci2_sep                 = input(true, title="-CCI2")
+cci2_len                 = input(50,  type=input.integer,    title="CCI Length")
+cci2_useDifferentRes     = input(false, title="Check to turn ON Different Time Frame")
+cci2_candle_period       = input("3", type=input.resolution, title="CCI - Time Frame")
+
+cci3_sep                 = input(true, title="-CCI3")
+cci3_len                 = input(100,  type=input.integer,    title="CCI Length")
+cci3_useDifferentRes     = input(false, title="Check to turn ON Different Time Frame")
+cci3_candle_period       = input("3", type=input.resolution, title="CCI - Time Frame")
+
+cci4_sep                 = input(true, title="-CCI4")
+cci4_len                 = input(200,  type=input.integer,    title="CCI Length")
+cci4_useDifferentRes     = input(false, title="Check to turn ON Different Time Frame")
+cci4_candle_period       = input("3", type=input.resolution, title="CCI - Time Frame")
+
+
+calc_cci(src, len, res, useRes) => 
+    cci_ma     = sma(src, len)
+    cci        = (src - cci_ma) / (0.015 * dev(src, len))
+    cci_res    = useRes?security(syminfo.tickerid, res, cci):cci
+
+//CCI1
+per_cci1 = calc_cci(source_main, cci1_len, cci1_candle_period, cci1_useDifferentRes )
+
+//CCI2
+per_cci2 = calc_cci(source_main, cci2_len, cci2_candle_period, cci2_useDifferentRes)
+ 
+//CCI3
+per_cci3 = calc_cci(source_main, cci3_len, cci3_candle_period, cci3_useDifferentRes)
+
+ //CCI4
+per_cci4 = calc_cci(source_main, cci4_len, cci4_candle_period, cci4_useDifferentRes)
+
+
+ 
+plot(ShowQUADCCI?per_cci1:na, color=#fee9ac, linewidth=0, style=plot.style_area, title = "CCI1 Line")
+plot(ShowQUADCCI?per_cci2:na, color=#70daef, linewidth=2, title = "CCI2 Line")
+plot(ShowQUADCCI?per_cci3:na, color=#3a8ed8,  linewidth=2, title = "CCI3 Line")
+plot(ShowQUADCCI?per_cci4:na, color=#a24cf7,  linewidth=2, title = "CCI4 Line")
+
+h1cci = hline(100, color=#FFFFFF00, linestyle=hline.style_solid  )
+h2cci = hline(-100, color=#FFFFFF00, linestyle=hline.style_solid  )
+fill(h1cci,h2cci, color=(ShowQUADCCI ? #2196F3 : #FFFFFF00 ) )
+  
+
+ 
+
+
+
+
+

@@ -1,0 +1,65 @@
+//@version=3
+
+
+//study("Quad HULL Moving Average", shorttitle="QUADEHULL",overlay=true)
+
+strategy("Quad HULLMA Strategy", overlay=true, initial_capital=1000)
+
+// config
+price =  input(close, title='Price')
+signalLength=input(50,minval=1)
+PDL1=input(title="LongerPeriod1", type=integer, defval=500, minval=1,maxval=500)
+PDL2=input(title="LongerPeriod2", type=integer, defval=800, minval=1,maxval=500)
+
+PDS1=input(title="ShorterPeriod1", type=integer, defval=50, minval=1,maxval=500)
+PDS2=input(title="ShorterPeriod2", type=integer, defval=80, minval=1,maxval=500)
+//--------
+
+
+HmaL1=wma(2*wma(price,round(PDL1/2))-wma(price,PDL1),round(sqrt(PDL1)))
+HmaL2=wma(2*wma(price,round(PDL2/2))-wma(price,PDL2),round(sqrt(PDL2)))
+
+HmaS1=wma(2*wma(price,round(PDS1/2))-wma(price,PDS1),round(sqrt(PDS1)))
+HmaS2=wma(2*wma(price,round(PDS2/2))-wma(price,PDS2),round(sqrt(PDS2)))
+
+
+diff = HmaL1 - HmaL2
+signal = ema(diff, signalLength)
+
+plotColor = if signal > 0
+    signal > signal[1] ? lime : green
+else 
+    signal < signal[1] ? maroon : red
+
+//plot(signal, color=plotColor, style=area)
+
+
+
+//long hull aggregation
+c=HmaL1>HmaL2?green:red
+plot(HmaL1,color=c, linewidth=1)
+
+
+
+//OUTPUT
+HL1 = plot(HmaL1,color=yellow, linewidth=1)
+HL2 = plot(HmaL2,color=orange, linewidth=1)
+HS1 = plot(HmaS1,color=aqua, linewidth=2)
+HS2 = plot(HmaS2,color=fuchsia, linewidth=2)
+
+fillColor = HmaL1>HmaL2?green:red
+//fill(HL1,HL2,color=fillColor,transp=80)
+
+
+//TRADES
+//longCondition = HmaS1>HmaS2 and rising(HmaL1, 4)
+//longCondition = HmaS1>HmaS2 and signal > signal[1]
+longCondition = crossover(HmaS1,HmaS2) and signal > signal[1]
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+
+//shortCondition = HmaS1<HmaS2  and falling(HmaL1, 4)
+//shortCondition = HmaS1<HmaS2 and signal < signal[1]
+shortCondition = crossunder(HmaS1,HmaS2)and signal < signal[1]
+if (shortCondition)
+    strategy.entry("Short", strategy.short)
